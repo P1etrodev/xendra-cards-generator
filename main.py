@@ -14,7 +14,7 @@ if not data_path.exists():
 	       "cards information.")
 	sys.exit()
 
-df = pd.read_excel("./cards_data.xlsx")
+df = pd.read_excel(data_path)
 
 cards = df.to_dict(orient='records')
 
