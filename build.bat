@@ -1,0 +1,1 @@
+pyinstaller main.py -F -n "cards_generator" --add-data=AGENCYB.ttf:. --add-data=Zabdilus.ttf:.
