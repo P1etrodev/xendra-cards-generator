@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('AGENCYB.ttf', '.'), ('Zabdilus.ttf', '.')],
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
