@@ -220,7 +220,7 @@ def update_add_payload(sender: str | int):
 
 def add_new_card():
 	global add_payload
-	if any(not _value for _value in add_payload.values()):
+	if any(_value is None for _value in add_payload.values()):
 		update_progress_bar("All fields must be completed in order to add the card.")
 	else:
 		cards_df.loc[len(cards_df)] = add_payload
