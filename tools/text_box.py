@@ -1,5 +1,6 @@
 from textwrap import wrap
 
+import pandas as pd
 from PIL import ImageDraw
 from PIL.ImageFont import FreeTypeFont
 from rich.console import Console
@@ -20,12 +21,12 @@ def text_box(
 	x: int, y: int, width: int, height: int,
 	horizontal_allignment: Align = Align.LEFT,
 	vertical_allignment: Align = Align.TOP,
-	highlight_colors: dict[str, dict[str, str]] = None,
+	highlight_colors: pd.DataFrame = None,
 	**kwargs
 ):
 	text = raw_text
-	for raw_effect_name, data in highlight_colors.items():
-		text = text.replace("@" + raw_effect_name, data.get("name").replace(' ', '_'))
+	for _, highlight in highlight_colors.iterrows():
+		text = text.replace("@" + highlight["raw_name"], highlight["name"].replace(' ', '_'))
 	fill = kwargs.get('fill', '#FFFFFF')
 	lines = wrap(text, max_characters)
 	
@@ -46,8 +47,9 @@ def text_box(
 			x_offset = width - linewidth
 		
 		raw_line = line
-		for raw_effect_name, data in highlight_colors.items():
-			raw_line = raw_line.replace(data.get("name").replace(' ', '_'), "@" + raw_effect_name)
+		if highlight_colors is not None:
+			for _, highlight in highlight_colors.iterrows():
+				raw_line = raw_line.replace(highlight["name"].replace(' ', '_'), "@" + highlight["raw_name"])
 		
 		x_cursor = x + x_offset
 		
@@ -55,22 +57,26 @@ def text_box(
 		while remaining_line:
 			highlighted = False
 			first_char = remaining_line[0]
-			if first_char in '¿¡{[(':
-				char_width = font.getlength(first_char)
-				image_draw.text((x_cursor, y + y_offset), first_char, font=font, fill=fill)
-				x_cursor += char_width
-				remaining_line = remaining_line[1:].lstrip()
-				continue
-			for raw_effect_name, data in highlight_colors.items():
-				if remaining_line.startswith(raw_effect_name := "@" + raw_effect_name):
-					effect_name, color = data.get("name"), data.get('color')
-					phrase_width = font.getlength(effect_name)
-					image_draw.text((x_cursor, y + y_offset), effect_name, font=font,
-					                fill=tuple(int(x) for x in color))
-					x_cursor += phrase_width + font.getlength(' ')
-					remaining_line = remaining_line[len(raw_effect_name):].lstrip()
-					highlighted = True
-					break
+			if highlight_colors is not None:
+				if first_char in '¿¡{[(':
+					char_width = font.getlength(first_char)
+					image_draw.text((x_cursor, y + y_offset), first_char, font=font, fill=fill)
+					x_cursor += char_width
+					remaining_line = remaining_line[1:].lstrip()
+					continue
+				for _, highlight in highlight_colors.iterrows():
+					if remaining_line.startswith(placeholder := "@" + highlight["raw_name"]):
+						effect_name = highlight["name"]
+						color = highlight['r'], highlight["g"], highlight["b"]
+						phrase_width = font.getlength(effect_name)
+						image_draw.text(
+							(x_cursor, y + y_offset), effect_name, font=font,
+							fill=color
+							)
+						x_cursor += phrase_width + font.getlength(' ')
+						remaining_line = remaining_line[len(placeholder):].lstrip()
+						highlighted = True
+						break
 			if not highlighted:
 				space_index = remaining_line.find(' ')
 				if space_index == -1:

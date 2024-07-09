@@ -20,9 +20,34 @@ class Data:
 		        "Aliados", "Entre casilleros", "Global", "Linea recta de casilleros", "Objetivo",
 		        "Oponentes", "Trampa", "Un casillero", "Zona de Colisión", "0"
 	        ] + [f"R{x}" for x in range(2, 7)]
+	worth = [
+		"Una acción",
+		"Acción gratuita",
+		"Acción gratuita (requiere prueba)"
+	]
+	effects = [
+		"Veneno",
+		"Quemaduras",
+		"Sangrado",
+		"Electrificar",
+		"Ralentizado",
+		"Aturdido",
+		"Encandilar",
+		"Derribo",
+		"Energizar",
+		"Aumento",
+		"Pasoextra",
+		"Precisión",
+		"Daño extra",
+		"Perforante",
+		"Escudo mágico",
+		"Combo",
+		"No requiere prueba"
+	]
 
 
 add_payload = {
+	"id": 0,
 	"name": None,
 	"range": None,
 	"area": None,
@@ -42,6 +67,7 @@ cards_data = Path('cards_data.xlsx')
 if not cards_data.exists():
 	cards_df = pd.DataFrame(
 		columns=[
+			"id",
 			"name",
 			"range",
 			"area",
@@ -58,6 +84,7 @@ else:
 	except:
 		highlights = pd.DataFrame(
 			columns=[
+				"id",
 				"name",
 				"range",
 				"area",
@@ -79,7 +106,7 @@ def refresh_card_list():
 	global cards_df
 	cards_df = cards_df.loc[cards_df["name"].str.contains(search_terms, case=False)]
 	
-	card_names = cards_df["name"].tolist() if not cards_df.empty else []
+	card_names = cards_df.sort_values(by="id")["name"].tolist() if not cards_df.empty else []
 	
 	dpg.configure_item(
 		'selected_card',
@@ -98,8 +125,8 @@ def update_card(sender_id: str, value, card_name: str):
 		cards_df.loc[card_name == cards_df["name"], column] = clean_value
 		wrapped = wrap(clean_value, 55)
 		dpg.set_value(sender_id, "\n".join(wrapped))
-	elif column == "is_insta":
-		cards_df.loc[card_name == cards_df["name"], "delay"] = "Instantáneo" if value else "Normal"
+	elif column == "delay":
+		cards_df.loc[card_name == cards_df["name"], column] = "Instantáneo" if value else "Normal"
 	else:
 		cards_df.loc[card_name == cards_df["name"], column] = value
 	
@@ -114,6 +141,8 @@ def save_cards():
 		update_progress_bar("You haven't added any cards.")
 	else:
 		cards_df.to_excel(cards_data, index=False)
+		update_progress_bar("Cards saved.")
+		refresh_card_list()
 
 
 def generate_cards():
@@ -133,7 +162,7 @@ def generate_cards():
 				new_status / 100,
 				True
 			)
-			create_card(config, fonts, index, card)
+			create_card(config, fonts, card)
 		
 		# noinspection PyUnboundLocalVariable
 		update_progress_bar(f"{rows} cards generated.")
@@ -160,7 +189,7 @@ def refresh_card_preview(card: pd.Series = None):
 		filtered = filtered.fillna('N/A')
 		card = filtered.iloc[0]
 	
-	create_card(config, fonts, 0, card, is_preview=True)
+	create_card(config, fonts, card, is_preview=True)
 	
 	new_width, new_height, new_channels, new_data = dpg.load_image("preview.png")
 	dpg.set_value("card_preview_texture", new_data)
@@ -278,6 +307,17 @@ def render_add_form():
 		callback=update_add_payload
 	)
 	
+	dpg.add_text(
+		default_value="Card ID",
+		parent=parent
+	)
+	
+	dpg.add_input_int(
+		tag="add_id_field",
+		parent=parent,
+		callback=update_add_payload
+	)
+	
 	dpg.add_checkbox(
 		label="Instantaneous",
 		tag="add_delay_field",
@@ -299,7 +339,7 @@ def render_add_form():
 		default_value='Range',
 		parent=parent
 	)
-	dpg.add_listbox(
+	dpg.add_combo(
 		tag="add_range_field",
 		items=Data.ranges,
 		parent=parent,
@@ -324,11 +364,7 @@ def render_add_form():
 	)
 	dpg.add_combo(
 		tag="add_worth_field",
-		items=[
-			"Una acción",
-			"Acción gratuita",
-			"Acción gratuita (requiere prueba)"
-		],
+		items=Data.worth,
 		parent=parent,
 		callback=update_add_payload
 	)
@@ -339,17 +375,7 @@ def render_add_form():
 	)
 	dpg.add_combo(
 		tag="add_effect_field",
-		items=[
-			"Veneno",
-			"Quemadura",
-			"Sangrado",
-			"Electrificar",
-			"Ralentizar",
-			"Aturdido",
-			"Encandilar",
-			"Derribo",
-			"No requiere prueba"
-		],
+		items=Data.effects,
 		parent=parent,
 		width=300,
 		callback=update_add_payload
@@ -421,6 +447,19 @@ def render_edit_form():
 				dpg.bind_item_theme(_title_id, _title_theme)
 			dpg.bind_item_font(_title_id, "main_bold_font")
 			
+			dpg.add_text(
+				default_value="Card ID",
+				parent=parent
+			)
+			
+			dpg.add_input_int(
+				tag="edit_id_field",
+				default_value=int(first_result["id"]),
+				parent=parent,
+				callback=update_card,
+				user_data=card_name
+			)
+			
 			dpg.add_checkbox(
 				label="Instantaneous",
 				tag="edit_is_insta_field",
@@ -465,11 +504,7 @@ def render_edit_form():
 			dpg.add_text('Worth:', parent=parent)
 			dpg.add_combo(
 				tag="edit_worth_field",
-				items=[
-					"Una acción",
-					"Acción gratuita",
-					"Acción gratuita (requiere prueba)"
-				],
+				items=Data.worth,
 				default_value=first_result["worth"],
 				parent=parent,
 				width=80,
@@ -480,17 +515,7 @@ def render_edit_form():
 			dpg.add_text("Effect:", parent=parent)
 			dpg.add_combo(
 				tag="edit_effect_field",
-				items=[
-					"Veneno",
-					"Quemadura",
-					"Sangrado",
-					"Electrificar",
-					"Ralentizar",
-					"Aturdido",
-					"Encandilar",
-					"Derribo",
-					"No requiere prueba"
-				],
+				items=Data.effects,
 				default_value=first_result["effect"],
 				parent=parent,
 				width=300,
@@ -548,7 +573,7 @@ def render_cards_section():
 				tag="card_search_box",
 				callback=refresh_card_list
 			)
-			card_names = cards_df["name"].tolist()
+			card_names = cards_df.sort_values(by="id")["name"].tolist()
 			dpg.add_listbox(
 				items=card_names,
 				callback=render_edit_form,
@@ -577,7 +602,7 @@ def render_cards_section():
 				
 				dpg.bind_item_theme(generate_button_id, generate_button_theme)
 			
-			dpg.add_button(label="Save changes", callback=save_cards)
+			dpg.add_button(label="Save cards", callback=save_cards)
 			dpg.add_button(label="Add card", callback=render_add_form)
 			dpg.add_button(label="Open cards folder", callback=lambda: startfile(Path("cards")))
 		with dpg.group(horizontal=True):

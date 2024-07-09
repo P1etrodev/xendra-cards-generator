@@ -1,11 +1,10 @@
 import json
-import re
 from configparser import ConfigParser
+from math import ceil
 from pathlib import Path
 
 import dearpygui.dearpygui as dpg
 import pandas as pd
-from PIL.ImageColor import getrgb
 
 from tools.load_config import load_config
 from tools.theme import Colors
@@ -36,30 +35,20 @@ changes_made = False
 add_payload = {
 	"raw_name": None,
 	"name": None,
-	"color": (255, 0, 0)
+	"r": 255,
+	"g": 0,
+	"b": 0
 }
 preferences_file = Path('config.ini')
-highlights_data = Path('highlights.json')
+highlights_data = Path('highlights.xlsx')
 
 if not highlights_data.exists():
-	highlights_df = pd.DataFrame(columns=["raw_name", "name", "color"])
+	highlights_df = pd.DataFrame(columns=["raw_name", "name", "r", "g", "b"])
 else:
 	try:
-		with highlights_data.open('r', encoding="UTF-8") as file:
-			raw_data: dict = json.load(file)
-			data = []
-			for key, value in raw_data.items():
-				values = list(value.values())
-				data.append(
-					{
-						"raw_name": key,
-						"name": values[0],
-						"color": values[1]
-					}
-				)
-			highlights_df = pd.DataFrame(data, columns=["raw_name", "name", "color"])
+		highlights_df = pd.read_excel(highlights_data)
 	except:
-		highlights_df = pd.DataFrame(columns=["raw_name", "name", "color"])
+		highlights_df = pd.DataFrame(columns=["raw_name", "name", "r", "g", "b"])
 
 
 def refresh_highlight_list():
@@ -84,7 +73,14 @@ def update_highlight(sender_id: str, _value, highlight_name: str):
 		_value = _value.lower()
 		dpg.set_value(sender_id, _value)
 	
-	highlights_df.loc[highlight_name == highlights_df["name"], column] = _value
+	elif column == "color":
+		r, g, b, _ = _value
+		highlights_df.loc[highlight_name == highlights_df["name"], "r"] = ceil(r)
+		highlights_df.loc[highlight_name == highlights_df["name"], "g"] = ceil(g)
+		highlights_df.loc[highlight_name == highlights_df["name"], "b"] = ceil(b)
+	
+	else:
+		highlights_df.loc[highlight_name == highlights_df["name"], column] = str(_value)
 
 
 def update_add_payload(sender: str | int):
@@ -95,15 +91,22 @@ def update_add_payload(sender: str | int):
 	if _key == "raw_name":
 		_value = _value.lower()
 		dpg.set_value(sender, _value)
-		
-	add_payload[_key] = _value
+		add_payload[_key] = _value
+	elif _key == "color":
+		r, g, b, _ = _value
+		add_payload["r"] = ceil(r)
+		add_payload["g"] = ceil(g)
+		add_payload["b"] = ceil(b)
+	else:
+		add_payload[_key] = _value
 
 
 def add_new_highlight():
 	global add_payload
-	if any(not _value for _value in add_payload.values()):
+	if any(_value is None for _value in add_payload.values()):
 		update_progress_bar("All fields must be completed in order to add the highlight.")
 	else:
+		# noinspection PyTypedDict
 		highlights_df.loc[len(highlights_df)] = add_payload
 		
 		refresh_highlight_list()
@@ -129,17 +132,8 @@ def save_highlights():
 	if highlights_df.empty:
 		update_progress_bar("You haven't added any highlights.")
 	else:
-		_highlights_json = {}
-		for _, highlight in highlights_df.iterrows():
-			_highlights_json[highlight["raw_name"]] = {
-				"name": highlight["name"],
-				"color": highlight["color"]
-			}
-		with highlights_data.open('w', encoding="UTF-8") as _file:
-			json.dump(_highlights_json, _file)
-		
-		update_progress_bar(f"{len(highlights_df)} highlights saved.")
-		
+		highlights_df.to_excel(highlights_data)
+		update_progress_bar(f"Highlights saved.")
 		refresh_highlight_list()
 
 
@@ -502,13 +496,11 @@ def render_add_form():
 	
 	dpg.add_color_picker(
 		tag="add_color_field",
+		default_value=(add_payload["r"], add_payload["g"], add_payload["b"]),
 		parent=parent,
-		default_value=add_payload["color"],
-		no_side_preview=True,
 		no_small_preview=True,
-		no_inputs=True,
 		no_alpha=True,
-		callback=lambda: update_add_payload("add_color_field")
+		callback=update_add_payload
 	)
 	
 	save_button_id = dpg.add_button(
@@ -595,12 +587,12 @@ def render_edit_form():
 		
 		dpg.add_color_picker(
 			tag="edit_color_field",
-			default_value=highlight["color"],
+			default_value=(highlight["r"], highlight["g"], highlight["b"]),
 			parent=parent,
-			no_side_preview=True,
 			no_small_preview=True,
-			no_inputs=True,
-			callback=lambda: update_highlight("edit_color_field", None, highlight_name)
+			no_alpha=True,
+			callback=update_highlight,
+			user_data=highlight_name
 		)
 		
 		delete_button_id = dpg.add_button(
@@ -684,7 +676,7 @@ def render_highlights_modal():
 			horizontal=True
 		):
 			with dpg.group(
-				width=width // 3
+				width=(width // 4) + 50
 			):
 				dpg.add_input_text(
 					hint="Search",

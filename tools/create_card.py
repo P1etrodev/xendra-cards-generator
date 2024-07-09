@@ -3,6 +3,7 @@ import sys
 from os import mkdir
 from pathlib import Path
 
+import pandas as pd
 from PIL import Image, ImageDraw
 from html2text import html2text
 from markdown import markdown
@@ -34,7 +35,6 @@ if not areas_folder.exists():
 def create_card(
 	config: dict,
 	fonts: Fonts,
-	index: int,
 	card: Series,
 	**kwargs
 ):
@@ -54,11 +54,6 @@ def create_card(
 	text_length = get_max_text_length(draw, parsed_text, font, 30)
 	position = ((img.width - text_length) / 2, 65 if len(parsed_text) <= 18 else 75)
 	draw_multiline_text(config, draw, position, parsed_text, font, (255, 255, 255), 30)
-	#
-	# text = "RANGO"
-	# parsed_text = html2text(markdown(text)).strip()
-	# position = (80, 35)
-	# draw.text(position, parsed_text, (255, 255, 255), font=fonts.head_font)
 	
 	# Range
 	_range = str(card['range'])
@@ -69,12 +64,6 @@ def create_card(
 				position = (75, 130)
 				range_img.thumbnail((150, 150))
 				img.paste(range_img, position, range_img)
-	#
-	# text = "ÁREA"
-	# parsed_text = html2text(markdown(text)).strip()
-	# text_length = draw.textlength(parsed_text, font=fonts.head_font)
-	# position = (img.width - text_length - 90, 35)
-	# draw.text(position, parsed_text, (255, 255, 255), font=fonts.head_font)
 	
 	# Area
 	if (area := card['area']) and area != "N/A":
@@ -87,20 +76,19 @@ def create_card(
 				img.paste(area_img, position, area_img)
 	
 	# Description
-	highlights_json_file = Path("highlights.json")
+	highlights_file = Path("highlights.xlsx")
 	text = str(card['description'])
 	if text != "N/A":
 		parsed_text = html2text(markdown(text)).strip()
 		text_copy = parsed_text
 		description_config = config.get('description')
-		if highlights_json_file.exists():
-			with highlights_json_file.open('rb') as highlights_file:
-				highlight_colors = json.load(highlights_file)
-		else:
-			highlight_colors = {}
-		for raw_effect_name, data in highlight_colors.items():
-			effect_name = data.get("name")
-			text_copy = text_copy.replace("@" + raw_effect_name, effect_name)
+		highlight_colors = None
+		if highlights_file.exists():
+			highlight_colors = pd.read_excel(highlights_file)
+		if highlight_colors is not None:
+			for _, data in highlight_colors.iterrows():
+				effect_name = data["name"]
+				text_copy = text_copy.replace("@" + data["raw_name"], effect_name.replace(' ', '_'))
 		is_too_long = len(text_copy) > (
 			275 if description_config is None else description_config.get('too_long_characters')
 		)
@@ -176,13 +164,13 @@ def create_card(
 		draw.text(position, parsed_text, (255, 255, 255), font=fonts.body_font)
 	
 	# Number
-	i = str(index + 1)
-	text_length = draw.textlength(i, font=fonts.body_font)
+	_id = str(card["id"])
+	text_length = draw.textlength(_id, font=fonts.body_font)
 	position = ((img.width - text_length) / 2, img.height - 80)
-	draw.text(position, i, (255, 255, 255), font=fonts.body_font)
+	draw.text(position, _id, (255, 255, 255), font=fonts.body_font)
 	
 	if not is_preview:
-		filename = f"{i}_" + card["name"].replace(' ', '_') + ".png"
+		filename = f"{_id}_" + card["name"].replace(' ', '_') + ".png"
 		
 		location = cards_folder.joinpath(filename)
 		resized = img.resize((4180, 6000))
