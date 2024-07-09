@@ -4,7 +4,8 @@ version = "2.0"
 
 [tool.cxfreeze]
 executables = [
-	{ script = "main.py", base = "Win32GUI", icon = "assets/icon.ico", target_name = "Xendras_Card_Generator", uac_admin = true }
+	{ script = "main.py", base = "Win32GUI", icon = "assets/icon.ico", target_name = "Xendras_Card_Generator" },
+	{ script = "main.py", base = "console", icon = "assets/icon.ico", target_name = "Xendras_Card_Generator_GUI" }
 ]
 
 [tool.cxfreeze.build_exe]

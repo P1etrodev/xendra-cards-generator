@@ -2,15 +2,14 @@ from math import ceil
 from os import startfile
 from pathlib import Path
 from textwrap import wrap
-from threading import Thread
 
 import dearpygui.dearpygui as dpg
 import pandas as pd
 
+from tools.create_card import create_card
 from tools.fonts import Fonts
 from tools.load_config import load_config
 from tools.theme import Colors
-from tools.create_card import create_card
 from tools.thread_function import thread_function
 from tools.update_progress_bar import update_progress_bar
 

@@ -25,8 +25,9 @@ def text_box(
 	**kwargs
 ):
 	text = raw_text
-	for _, highlight in highlight_colors.iterrows():
-		text = text.replace("@" + highlight["raw_name"], highlight["name"].replace(' ', '_'))
+	if highlight_colors is not None:
+		for _, highlight in highlight_colors.iterrows():
+			text = text.replace("@" + highlight["raw_name"], highlight["name"].replace(' ', '_'))
 	fill = kwargs.get('fill', '#FFFFFF')
 	lines = wrap(text, max_characters)
 	
