@@ -18,9 +18,6 @@ is_app_frozen = hasattr(sys, "frozen")
 
 max_length = 16
 
-cards_folder = Path("cards")
-if not cards_folder.exists():
-	mkdir(cards_folder)
 assets_folder = Path("assets")
 if not assets_folder.exists():
 	raise Exception(f"{assets_folder} not found.")
@@ -38,6 +35,10 @@ def create_card(
 	card: Series,
 	**kwargs
 ):
+	cards_folder = Path("cards")
+	if not cards_folder.exists():
+		mkdir(cards_folder)
+	
 	is_preview = kwargs.get('is_preview')
 	
 	if is_preview:

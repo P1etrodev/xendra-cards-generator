@@ -54,9 +54,9 @@ else:
 def refresh_highlight_list():
 	search_terms = dpg.get_value("highlight_search_box")
 	global highlights_df
-	highlights_df = highlights_df.loc[highlights_df["name"].str.contains(search_terms, case=False)]
+	_filtered = highlights_df.loc[highlights_df["name"].str.contains(search_terms, case=False)]
 	
-	highlight_names = highlights_df["name"].tolist() if not highlights_df.empty else []
+	highlight_names = _filtered["name"].tolist() if not _filtered.empty else []
 	
 	dpg.configure_item(
 		'selected_name',

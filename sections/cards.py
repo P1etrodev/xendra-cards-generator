@@ -11,6 +11,7 @@ from tools.fonts import Fonts
 from tools.load_config import load_config
 from tools.theme import Colors
 from tools.create_card import create_card
+from tools.thread_function import thread_function
 from tools.update_progress_bar import update_progress_bar
 
 
@@ -101,12 +102,19 @@ config = load_config()
 fonts = Fonts(config.get('font'))
 
 
+def generate_single_card(card_name: str):
+	card = cards_df[cards_df["name"] == card_name].iloc[0]
+	update_progress_bar(f'Generating "{card_name}"...')
+	create_card(config, fonts, card)
+	update_progress_bar(f'"{card_name}" generated.')
+
+
 def refresh_card_list():
 	search_terms = dpg.get_value("card_search_box")
 	global cards_df
-	cards_df = cards_df.loc[cards_df["name"].str.contains(search_terms, case=False)]
+	_filtered = cards_df.loc[cards_df["name"].str.contains(search_terms, case=False)]
 	
-	card_names = cards_df.sort_values(by="id")["name"].tolist() if not cards_df.empty else []
+	card_names = _filtered.sort_values(by="id")["name"].tolist() if not _filtered.empty else []
 	
 	dpg.configure_item(
 		'selected_card',
@@ -133,7 +141,7 @@ def update_card(sender_id: str, value, card_name: str):
 	filtered = cards_df.loc[card_name == cards_df["name"]]
 	if not filtered.empty:
 		card = filtered.iloc[0]
-		refresh_card_preview(card)
+		thread_function(refresh_card_preview, card)
 
 
 def save_cards():
@@ -208,7 +216,7 @@ def update_add_payload(sender: str | int):
 		add_payload[key] = value
 	
 	card = pd.Series(add_payload).fillna('N/A')
-	refresh_card_preview(card)
+	thread_function(refresh_card_preview, card)
 
 
 def add_new_card():
@@ -415,7 +423,7 @@ def render_add_form():
 	
 	card = pd.Series(add_payload).fillna('N/A')
 	
-	refresh_card_preview(card)
+	thread_function(refresh_card_preview, card)
 
 
 def render_edit_form():
@@ -531,6 +539,13 @@ def render_edit_form():
 				user_data=card_name,
 				callback=update_card
 			)
+			
+			_delete_button_id = dpg.add_button(
+				label="Generate this card (only)",
+				parent=parent,
+				callback=lambda: thread_function(generate_single_card, card_name=card_name)
+			)
+			
 			_delete_button_id = dpg.add_button(
 				label="Delete card",
 				parent=parent,
@@ -552,7 +567,7 @@ def render_edit_form():
 			
 			dpg.bind_item_theme(_delete_button_id, delete_button_theme)
 		
-		refresh_card_preview()
+		thread_function(refresh_card_preview)
 
 
 def render_cards_section():
@@ -584,7 +599,7 @@ def render_cards_section():
 			generate_button_id = dpg.add_button(
 				label="Generate cards",
 				tag="generate_cards_button",
-				callback=Thread(target=generate_cards).start
+				callback=lambda: thread_function(generate_cards)
 			)
 			
 			with dpg.theme() as generate_button_theme:
@@ -602,7 +617,7 @@ def render_cards_section():
 				
 				dpg.bind_item_theme(generate_button_id, generate_button_theme)
 			
-			dpg.add_button(label="Save cards", callback=save_cards)
+			dpg.add_button(label="Save cards", callback=lambda: thread_function(save_cards))
 			dpg.add_button(label="Add card", callback=render_add_form)
 			dpg.add_button(label="Open cards folder", callback=lambda: startfile(Path("cards")))
 		with dpg.group(horizontal=True):
