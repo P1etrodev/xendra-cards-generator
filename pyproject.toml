@@ -1,0 +1,12 @@
+[project]
+name = "xendras-card-generator"
+version = "2.0"
+
+[tool.cxfreeze]
+executables = [
+	{ script = "main.py", base = "Win32GUI", icon = "assets/icon.ico", target_name = "Xendras_Card_Generator", uac_admin = true }
+]
+
+[tool.cxfreeze.build_exe]
+include_files = ["assets", "cards_data.xlsx", "config.ini"]
+packages = ["os", "numpy", "pandas", "PIL"]

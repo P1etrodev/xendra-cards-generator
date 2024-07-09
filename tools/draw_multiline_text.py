@@ -1,4 +1,3 @@
-import re
 from textwrap import wrap
 
 from PIL.ImageDraw import ImageDraw
@@ -58,9 +57,9 @@ def draw_multiline_text(
 						_draw.text((x + x_offset, y), word, font=_font, fill=highlight_colors[lowered])
 					else:
 						_draw.text((x + x_offset, y), word.replace('_', ""), font=_font, fill=_fill)
-
+					
 					current_phrase.append(word)
-
+					
 					x_offset += word_width + (_font.getlength(' '))
 			y_offset += _font.size
 	else:

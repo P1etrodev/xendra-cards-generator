@@ -1,1 +1,0 @@
-pyinstaller main.py -F -n "cards_generator"

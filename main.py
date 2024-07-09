@@ -1,202 +1,111 @@
-import json
-import sys
-from os import mkdir, remove
+import os
 from pathlib import Path
 
-import pandas as pd
-from PIL import Image, ImageDraw, ImageFont
-from html2text import html2text
-from markdown import markdown
-from rich.console import Console
-from rich.pretty import install
+import dearpygui.dearpygui as dpg
 
-from draw_multiline_text import draw_multiline_text
-from get_max_text_length import get_max_text_length
-from load_config import load_config
-from text_box import Align, text_box
+from tools.theme import Colors, load_theme
+from sections.cards import render_cards_section
+from sections.settings import render_preferences_modal, render_highlights_modal
 
-install()
+width, height = 1240, 776
 
-is_app_frozen = hasattr(sys, "frozen")
+title_bar_drag = False
 
-console = Console()
+dpg.create_context()
+dpg.setup_dearpygui()
+
+# noinspection PyNoneFunctionAssignment
+viewport_id = dpg.create_viewport(
+	title='Card Generator v2.0',
+	small_icon='assets/icon.ico',
+	large_icon='assets/icon.ico',
+	resizable=False,
+	decorated=False,
+	width=width,
+	height=height
+)
 
 
-def main():
-	
-	data_path = Path("./cards_data.xlsx")
-	cards_folder = Path("cards")
-	max_length = 16
-	
-	if not cards_folder.exists():
-		mkdir(cards_folder)
-	else:
-		console.log(f'Cards found, removing.')
-		count = 0
-		for file in cards_folder.glob('*'):
-			remove(file)
-			count += 1
-		console.log(f'{count} cards removed.')
-	
-	if not data_path.exists():
-		console.log(
-			"This app must be in the same folder as a file called 'cards_data.xlsx' containing the "
-			"cards information."
-		)
-		sys.exit()
-	
-	config = load_config()
-	
-	df = pd.read_excel(data_path)
-	
-	df.dropna(inplace=True)
-	
-	cards = df.to_dict(orient='records')
-	
-	font_config = config.get('font')
-	head_font = ImageFont.truetype(
-		"./Zabdilus.ttf", (
-			90 if font_config is None else font_config.get('head_normal')
-		)
-	)
-	head_font_md = ImageFont.truetype(
-		"./Zabdilus.ttf", (
-			70 if font_config is None else font_config.get('head_medium')
-		)
-	)
-	body_font = ImageFont.truetype(
-		"./AGENCYB.ttf", (
-			60 if font_config is None else font_config.get('body_normal')
-		)
-	)
-	body_font_md = ImageFont.truetype(
-		"./AGENCYB.ttf", (
-			46 if font_config is None else font_config.get('body_medium')
-		)
-	)
-	body_font_sm = ImageFont.truetype(
-		"./AGENCYB.ttf", (
-			40 if font_config is None else font_config.get('body_small')
-		)
-	)
-	
-	console.log('Generating cards...')
-	
-	for index, card in enumerate(cards):
-		console.log(f'Generating "{card.get("title")}"...')
-		
-		if is_app_frozen:
-			img = Image.new("RGBA", (1080, 1550), (255, 0, 0, 0))
+def cal_dow(_, data):
+	global title_bar_drag
+	threshold = 80
+	if dpg.is_mouse_button_down(0):
+		y = data[1]
+		if -threshold <= y <= threshold:
+			title_bar_drag = True
 		else:
-			img = Image.open("Template.jpg")
-		
-		draw = ImageDraw.Draw(img)
-		
-		# Title
-		text = html2text(markdown(card.get('title').upper())).strip()
-		font = head_font_md if len(text) > 18 else head_font
-		text_length = get_max_text_length(draw, text, font, 30)
-		position = ((img.width - text_length) / 2, 65 if len(text) <= 18 else 75)
-		draw_multiline_text(config, draw, position, text, font, (255, 255, 255), 30)
-		
-		# Range
-		text = html2text(markdown(card.get('range').upper())).strip()
-		position = (70, 35)
-		draw.text(position, text, (255, 255, 255), font=head_font)
-		
-		# Type
-		text = html2text(markdown(card.get('type').upper())).strip()
-		text_length = draw.textlength(text, font=head_font)
-		position = (img.width - text_length - 85, 35)
-		draw.text(position, text, (255, 255, 255), font=head_font)
-		
-		# Description
-		text = html2text(markdown(card.get('description'))).strip()
-		text_copy = text
-		description_config = config.get('description')
-		with open('highlights.json', 'rb') as highlights_file:
-			highlight_colors = json.load(highlights_file)
-		for raw_effect_name, data in highlight_colors.items():
-			effect_name = data.get("name")
-			text_copy = text_copy.replace("@"+raw_effect_name, effect_name)
-		is_too_long = len(text_copy) > (
-			275 if description_config is None else description_config.get('too_long_characters')
-		)
-		text_box(
-			text,
-			draw, body_font_md if is_too_long else body_font,
-			(
-				56 if description_config is None else description_config.get(
-					'long_max_characters_per_line'
-				)
-			) if is_too_long else (
-				42 if description_config is None else description_config.get(
-					'short_max_characters_per_line'
-				)
-			),
-			80 if description_config is None else description_config.get('padding_left'),
-			img.height - (700 if description_config is None else description_config.get('padding_top')),
-			img.width - 160, 400,
-			Align.LEFT, Align.CENTER,
-			highlight_colors, fill='#000000', show_frame=True
-		)
-		
-		# Worth
-		text = html2text(markdown(card.get('worth'))).strip()
-		if len(text) > max_length:
-			position = [150, img.height - 235]
-			draw_multiline_text(config, draw, position, text, body_font_sm, (255, 255, 255), max_length)
-		else:
-			position = (150, img.height - 225)
-			draw.text(position, text, (255, 255, 255), font=body_font)
-		
-		# Delay
-		text = html2text(markdown(card.get('delay'))).strip()
-		if len(text) > max_length:
-			position = [150, img.height - 125]
-			draw_multiline_text(config, draw, position, text, body_font_sm, (255, 255, 255), max_length)
-		else:
-			position = (150, img.height - 115)
-			draw.text(position, text, (255, 255, 255), font=body_font)
-		
-		# Effect
-		text = html2text(markdown(card.get('effect'))).strip()
-		if len(text) > max_length:
-			position = [img.width / 2 + 100, img.height - 235]
-			draw_multiline_text(config, draw, position, text, body_font_sm, (255, 255, 255), max_length)
-		else:
-			position = (img.width / 2 + 100, img.height - 225)
-			draw.text(position, text, (255, 255, 255), font=body_font)
-		
-		# Effect type
-		text = html2text(markdown(card.get('effect_type'))).strip()
-		if len(text) > max_length:
-			position = [img.width / 2 + 100, img.height - 125]
-			draw_multiline_text(config, draw, position, text, body_font_sm, (255, 255, 255), max_length)
-		else:
-			position = (img.width / 2 + 100, img.height - 115)
-			draw.text(position, text, (255, 255, 255), font=body_font)
-		
-		# Number
-		i = str(index + 1)
-		text_length = draw.textlength(i, font=body_font)
-		position = ((img.width - text_length) / 2, img.height - 80)
-		draw.text(position, i, (255, 255, 255), font=body_font)
-		
-		filename = f"{i}_" + card.get("title").replace(' ', '_') + ".png"
-		
-		location = cards_folder.joinpath(filename)
-		
-		resized = img.resize((4180, 6000))
-		resized.save(location, "png")
+			title_bar_drag = False
+
+
+def cal(_, data):
+	global title_bar_drag
+	if title_bar_drag:
+		pos = dpg.get_viewport_pos()
+		x = data[1]
+		y = data[2]
+		final_x = pos[0] + x
+		final_y = pos[1] + y
+		dpg.configure_viewport(viewport_id, x_pos=final_x, y_pos=final_y)
+
+
+def _exit():
+	dpg.destroy_context()
+
+
+with dpg.window(
+	tag="main",
+	no_collapse=True,
+	no_move=True,
+	no_resize=True,
+	no_title_bar=True,
+	on_close=_exit,
+	width=width,
+	height=height,
+	pos=[0, 0]
+):
+	close_button_id = dpg.add_button(label="X", width=50, callback=_exit, pos=[width - 50, 5])
 	
-	console.log(f"{len(cards)} cards generated successfully.")
+	with dpg.theme() as close_button_theme:
+		with dpg.theme_component(dpg.mvAll):
+			dpg.add_theme_color(
+				dpg.mvThemeCol_Button,
+				Colors.red,
+				category=dpg.mvThemeCat_Core
+			)
+			dpg.add_theme_color(
+				dpg.mvThemeCol_Text,
+				Colors.white,
+				category=dpg.mvThemeCat_Core
+			)
+		dpg.bind_item_theme(close_button_id, close_button_theme)
+	
+	with dpg.tab_bar(tag="tab_bar"):
+		dpg.add_tab_button(label="Highlights", callback=render_highlights_modal)
+		dpg.add_tab_button(label="Preferences", callback=render_preferences_modal)
+		
+	render_cards_section()
+	
+	dpg.add_progress_bar(
+		tag="generate_card_progress_bar",
+		pos=[5, dpg.get_viewport_client_height() - 57.1],
+		width=dpg.get_viewport_width()
+	)
 
+with dpg.handler_registry():
+	dpg.add_mouse_drag_handler(0, callback=cal)
+	dpg.add_mouse_move_handler(callback=cal_dow)
 
-if __name__ == "__main__":
-	try:
-		main()
-	except Exception:
-		console.print_exception()
-	if is_app_frozen:
-		input("Press ENTER to close this window...")
+with dpg.font_registry():
+	dpg.add_font("assets/fonts/Poppins-Regular.ttf", size=20, tag="main_font")
+	dpg.add_font("assets/fonts/Poppins-Bold.ttf", size=25, tag="main_bold_font")
+
+dpg.bind_font("main_font")
+
+load_theme()
+
+dpg.show_viewport(maximized=True)
+dpg.start_dearpygui()
+dpg.destroy_context()
+
+if (last_preview := Path('preview.png')).exists():
+	os.remove(last_preview)
