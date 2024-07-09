@@ -1,14 +1,1 @@
-{
-  "test_effect": {
-    "name": "Efecto de prueba",
-    "color": "#3B0D90"
-  },
-  "long_test_effect": {
-    "name": "Invocar Gigante de Piedra",
-    "color": "#04444e"
-  },
-  "empanada_tucumana": {
-    "name": "Tormenta Eléctrica",
-    "color": "#FFFFFF"
-  }
-}
+{"a": {"name": "ASD", "color": [205.94509887695312, 51.72941207885742, 51.72941207885742, 255.0]}}

@@ -1,7 +1,4 @@
-.venv
-build
-dist
-~*
-cards_generator.exe
-cards
-.idea
+build/
+__pycache__/
+.idea/
+cards/

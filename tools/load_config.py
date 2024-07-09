@@ -1,10 +1,6 @@
 from configparser import ConfigParser
 from pathlib import Path
 
-from rich.console import Console
-
-console = Console()
-
 
 def load_config() -> dict:
 	config_file = Path('config.ini')
@@ -15,7 +11,7 @@ def load_config() -> dict:
 	
 	_config = ConfigParser()
 	_config.optionxform = str
-	_config.read('config.ini')
+	_config.read(config_file)
 	
 	_parsed_config = {}
 	
@@ -23,13 +19,5 @@ def load_config() -> dict:
 		_parsed_config[section] = {}
 		for option in _config.options(section):
 			_parsed_config[section][option] = eval(_config.get(section, option))
-	
-	# if 'highlight' in _parsed_config:
-	# 	for key, value in _parsed_config['highlight'].items():
-	# 		try:
-	# 			color_tuple = ImageColor.getrgb(value)
-	# 			_parsed_config['highlight'][key] = color_tuple
-	# 		except ValueError:
-	# 			print(f'{value} ({key}) is not a valid color. This term will be ignored.')
 	
 	return _parsed_config
